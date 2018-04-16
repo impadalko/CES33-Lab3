@@ -2,6 +2,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <stdlib.h>
 #include <pthread.h>
 
 // Data format to be stored in the DB
@@ -41,13 +42,12 @@ void get_name(std::string lower, std::string upper){
 void get_value(double lower, double upper){
 }
 
-int main(int argc, char* argv[]){
-	// The data file stores the data when the system is not running
-	// As this is a very simplified version of a DB, we are not going
-	// to constantly write to it
+// Load the data into memory
+bool read_data(const char *file_name) {
 	std::ifstream in_data;
-	// Load the data into memory
-	in_data.open("data.txt");
+	in_data.open(file_name);
+	if(!in_data.is_open())
+		return false;
 	table = std::vector<row>();
 	row tmp;
 	while(in_data >> tmp.id >> tmp.name >> tmp.value){
@@ -57,11 +57,39 @@ int main(int argc, char* argv[]){
 	}
 	next_id++;
 	in_data.close();
+	return true;
+}
+
+// Write the data to the disk
+bool save_data(const char *file_name) {
 	std::ofstream out_data;
-	// Write the data to the disk
-	out_data.open("data.txt");
+	out_data.open(file_name);
+	if(!out_data.is_open())
+		return false;
 	for (int i = 0; i < table.size(); i++)
 		out_data << table[i].id << " " << table[i].name << " " << table[i].value << std::endl;
 	out_data.close();
+	return true;
+}
+
+int main(int argc, char* argv[]){
+	// The data file stores the data when the system is not running
+	// As this is a very simplified version of a DB, we are not going
+	// to constantly write to it
+
+	if(read_data("data.txt"))
+		std::cout << "Data read succesfully!" << std::endl;
+	else {
+		std::cout << "Couldn't read data!" << std::endl;
+		exit(EXIT_FAILURE);
+	}
+
+	if(save_data("data.txt"))
+		std::cout << "Data saved succesfully!" << std::endl;
+	else {
+		std::cout << "Couldn't save data!" << std::endl;
+		exit(EXIT_FAILURE);
+	}
+
 	return 0;
 }
