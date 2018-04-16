@@ -32,12 +32,12 @@ void insert(std::string name, double value){
 	tmp.name = name;
 	tmp.value = value;
 
-	sem_wait(&database); // down on database's semaphore
+	sem_wait(&database); // sem_wait on database's semaphore
 	// pthread_mutex_lock(&mutex);
-	// down(&mutex);
+	// sem_wait(&mutex);
 	// Takes the lock to ensure no two entries have the same id
 	tmp.id = next_id++;
-	// up(&mutexex);
+	// sem_post(&mutex);
 	// pthread_mutex_unlock(&mutex);
 
 	// pthread_mutex_lock(&mutex);
@@ -47,51 +47,51 @@ void insert(std::string name, double value){
 }
 
 void get_id(long lower, long upper){
-	down(&mutex);
+	sem_wait(&mutex);
 	num_of_readers++;
 	if(num_of_readers == 1)
-		down(&database);
-	up(&mutex);
+		sem_wait(&database);
+	sem_post(&mutex);
 
 	// get data
 
-	down(&mutex);
+	sem_wait(&mutex);
 	num_of_readers--;
 	if(num_of_readers == 0)
-		up(&database);
-	up(&mutex);
+		sem_post(&database);
+	sem_post(&mutex);
 }
 
 void get_name(std::string lower, std::string upper){
-	down(&mutex);
+	sem_wait(&mutex);
 	num_of_readers++;
 	if(num_of_readers == 1)
-		down(&database);
-	up(&mutex);
+		sem_wait(&database);
+	sem_post(&mutex);
 
 	// get data
 
-	down(&mutex);
+	sem_wait(&mutex);
 	num_of_readers--;
 	if(num_of_readers == 0)
-		up(&database);
-	up(&mutex);
+		sem_post(&database);
+	sem_post(&mutex);
 }
 
 void get_value(double lower, double upper){
-	down(&mutex);
+	sem_wait(&mutex);
 	num_of_readers++;
 	if(num_of_readers == 1)
-		down(&database);
-	up(&mutex);
+		sem_wait(&database);
+	sem_post(&mutex);
 
 	// get data
 
-	down(&mutex);
+	sem_wait(&mutex);
 	num_of_readers--;
 	if(num_of_readers == 0)
-		up(&database);
-	up(&mutex);
+		sem_post(&database);
+	sem_post(&mutex);
 }
 
 int main(int argc, char* argv[]){

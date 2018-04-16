@@ -1,4 +1,4 @@
 #!/bin/bash
 
-g++ db.cpp -o run
+g++ -pthread db.cpp -o run
 ./run
