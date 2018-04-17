@@ -143,7 +143,7 @@ void get_name(std::string lower, std::string upper){
 		}
 
 		for(int j = 0; j < table.size(); j++)
-			if(table[i].name.compare(lower) >= 0 && table[i].name.compare(upper) <= 0)
+			if(table[j].name.compare(lower) >= 0 && table[j].name.compare(upper) <= 0)
 				std::cout << table[j].id << " " << table[j].name << " " << table[j].value << std::endl;
 
 		oss.str("");
@@ -171,7 +171,7 @@ void get_value(double lower, double upper){
 		}
 
 		for(int j = 0; j < table.size(); j++)
-			if(table[i].value >= lower && table[i].value <= upper)
+			if(table[j].value >= lower && table[j].value <= upper)
 				std::cout << table[j].id << " " << table[j].name << " " << table[j].value << std::endl;
 
 		oss.str("");
@@ -207,7 +207,9 @@ int main(int argc, char* argv[]) {
 	// for (int i = 0; i < 2000; i++)
 	// 	insert("a", 1);
 
-	get_id(990, 1010);
+	// get_id(990, 1010);
+	// get_name("a", "z");
+	// get_value(1, 2);
 
 	if(write_disk(index_path))
 		message("Index wrote succesfully!");
