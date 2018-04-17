@@ -1,11 +1,18 @@
-#include <iostream>
+#include <cstring>
 #include <fstream>
+#include <iostream>
 #include <sstream>
-#include <string>
 #include <vector>
-#include <stdlib.h>
-#include <semaphore.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <pthread.h>
+#include <semaphore.h>
+#include <stdlib.h>
+
+#define DATABASE "database/"
+#define DATAFILE "data"
+#define INDEX    "index"
+#define EXT      ".txt"
 
 // Data format to be stored in the DB
 typedef struct {
@@ -21,8 +28,6 @@ typedef struct {
 	long end_id;
 } file;
 
-typedef unsigned int semaphore;
-
 sem_t mutex;    // Mutex semaphore
 sem_t database; // Database semaphore
 
@@ -33,21 +38,36 @@ unsigned int num_of_readers = 0;
 std::vector<row> table; // Data representation in memory
 std::vector<file> disk; // Files presents in the disk
 
-bool read_disk(const char *file_name);
-bool write_disk(const char *file_name);
-bool read_data(const char *file_name);
-bool save_data(const char *file_name);
+std::string ccp_to_str(const char *str); // "const char *" to "std::string"
+bool check_database();
+bool create_database();
+bool read_disk(std::string file_name);
+bool write_disk(std::string file_name);
+bool read_data(std::string file_name);
+bool save_data(std::string file_name);
+
+void lock_reader() {
+	sem_wait(&mutex);
+	num_of_readers++;
+	if(num_of_readers == 1)
+		sem_wait(&database);
+	sem_post(&mutex);
+}
+
+void unlock_reader() {
+	sem_wait(&mutex);
+	num_of_readers--;
+	if(num_of_readers == 0)
+		sem_post(&database);
+	sem_post(&mutex);
+}
 
 void insert(std::string name, double value){
-	row tmp;
-
-	tmp.name = name;
-	tmp.value = value;
-
+	row tmp = { 0, name, value };
 	sem_wait(&database); // sem_wait on database's semaphore
 	file f;
 	std::ostringstream oss;
-	oss << "data" << last_file_id << ".txt";
+	oss << ccp_to_str(DATABASE) + ccp_to_str(DATAFILE) << last_file_id << EXT;
 	read_data(oss.str().c_str());
 	tmp.id = next_id;
 	// if the file is full, create a new one and add to the index
@@ -61,22 +81,19 @@ void insert(std::string name, double value){
 	table.push_back(tmp);
 	disk[last_file_id].end_id = tmp.id;
 	oss.str("");
-	oss << "data" << last_file_id << ".txt";
+	oss << ccp_to_str(DATABASE) + ccp_to_str(DATAFILE) << last_file_id << EXT;
 	save_data(oss.str().c_str());
 	sem_post(&database); // up on database's semaphore
 }
 
 void get_id(long lower, long upper){
-	sem_wait(&mutex);
-	num_of_readers++;
-	if(num_of_readers == 1)
-		sem_wait(&database);
-	sem_post(&mutex);
+	lock_reader();
 
 	std::ostringstream oss;
 	std::cout << "ID  NAME  VALUE" << std::endl;
 	for(int i = 0; i < disk.size(); i++){
-		oss << "data" << disk[i].id << ".txt";
+		std::cout << ccp_to_str(DATABASE) + ccp_to_str(DATAFILE) << disk[i].id << EXT << std::endl;
+		oss << ccp_to_str(DATABASE) + ccp_to_str(DATAFILE) << disk[i].id << EXT;
 		if(read_data(oss.str().c_str()))
 			std::cout << "Data read succesfully!" << std::endl;
 		else {
@@ -88,24 +105,16 @@ void get_id(long lower, long upper){
 				std::cout << table[j].id << " " << table[j].name << " " << table[j].value << std::endl;
 	}
 
-	sem_wait(&mutex);
-	num_of_readers--;
-	if(num_of_readers == 0)
-		sem_post(&database);
-	sem_post(&mutex);
+	unlock_reader();
 }
 
 void get_name(std::string lower, std::string upper){
-	sem_wait(&mutex);
-	num_of_readers++;
-	if(num_of_readers == 1)
-		sem_wait(&database);
-	sem_post(&mutex);
+	lock_reader();
 
 	std::ostringstream oss;
 	std::cout << "ID  NAME  VALUE" << std::endl;
 	for(int i = 0; i < disk.size(); i++){
-		oss << "data" << disk[i].id << ".txt";
+		oss << ccp_to_str(DATABASE) + ccp_to_str(DATAFILE) << disk[i].id << EXT;
 		if(read_data(oss.str().c_str()))
 			std::cout << "Data read succesfully!" << std::endl;
 		else {
@@ -117,24 +126,16 @@ void get_name(std::string lower, std::string upper){
 				std::cout << table[j].id << " " << table[j].name << " " << table[j].value << std::endl;
 	}
 
-	sem_wait(&mutex);
-	num_of_readers--;
-	if(num_of_readers == 0)
-		sem_post(&database);
-	sem_post(&mutex);
+	unlock_reader();
 }
 
 void get_value(double lower, double upper){
-	sem_wait(&mutex);
-	num_of_readers++;
-	if(num_of_readers == 1)
-		sem_wait(&database);
-	sem_post(&mutex);
+	lock_reader();
 
 	std::ostringstream oss;
 	std::cout << "ID  NAME  VALUE" << std::endl;
 	for(int i = 0; i < disk.size(); i++){
-		oss << "data" << disk[i].id << ".txt";
+		oss << ccp_to_str(DATABASE) + ccp_to_str(DATAFILE) << disk[i].id << EXT;
 		if(read_data(oss.str().c_str()))
 			std::cout << "Data read succesfully!" << std::endl;
 		else {
@@ -146,17 +147,24 @@ void get_value(double lower, double upper){
 				std::cout << table[j].id << " " << table[j].name << " " << table[j].value << std::endl;
 	}
 
-	sem_wait(&mutex);
-	num_of_readers--;
-	if(num_of_readers == 0)
-		sem_post(&database);
-	sem_post(&mutex);
+	unlock_reader();
 }
 
-int main(int argc, char* argv[]){
-	sem_init(&database, 0, 1); // initialize semaphore
+int main(int argc, char* argv[]) {
+	sem_init(&mutex, 0, 1);    // intialize mutex
+	sem_init(&database, 0, 1); // initialize database semaphore
 
-	if(read_disk("index.txt"))
+	if(!check_database()) {
+		std::cout << "Creating database!" << std::endl;
+		if(create_database())
+			std::cout << "Database created!" << std::endl;
+		else {
+			std::cout << "Couldn't create database!" << std::endl;
+			exit(EXIT_FAILURE);
+		}
+	}
+
+	if(read_disk(ccp_to_str(DATABASE) + ccp_to_str(INDEX) + ccp_to_str(EXT)))
 		std::cout << "Index read succesfully!" << std::endl;
 	else {
 		std::cout << "Couldn't read index!" << std::endl;
@@ -168,7 +176,7 @@ int main(int argc, char* argv[]){
 
 	get_id(500, 1500);
 
-	if(write_disk("index.txt"))
+	if(write_disk(ccp_to_str(DATABASE) + ccp_to_str(INDEX) + ccp_to_str(EXT)))
 		std::cout << "Index wrote succesfully!" << std::endl;
 	else {
 		std::cout << "Couldn't write index!" << std::endl;
@@ -178,10 +186,28 @@ int main(int argc, char* argv[]){
 	return 0;
 }
 
+std::string ccp_to_str(const char *str) {
+	return std::string(str, strlen(str));
+}
+
+// Checks if database dir exists
+bool check_database() {
+	struct stat info;
+	if(stat(DATABASE, &info) == 0)
+		return true;
+	return false;
+}
+
+bool create_database() {
+	if(mkdir(DATABASE, S_IRWXU | S_IRWXG | S_IRWXO) >= 0)
+		return true;
+	return false;
+}
+
 // Load disk info to memory
-bool read_disk(const char *file_name) {
+bool read_disk(std::string file_name) {
 	std::ifstream in_data;
-	in_data.open(file_name);
+	in_data.open(file_name.c_str());
 	if(!in_data.is_open())
 		return false;
 	disk = std::vector<file>();
@@ -191,15 +217,15 @@ bool read_disk(const char *file_name) {
 			last_file_id = tmp.id;
 		disk.push_back(tmp);
 	}
-	last_file_id;
+	last_file_id; // ???
 	in_data.close();
 	return true;
 }
 
 // Load the data into memory
-bool read_data(const char *file_name) {
+bool read_data(std::string file_name) {
 	std::ifstream in_data;
-	in_data.open(file_name);
+	in_data.open(file_name.c_str());
 	if(!in_data.is_open())
 		return false;
 	table = std::vector<row>();
@@ -214,9 +240,9 @@ bool read_data(const char *file_name) {
 	return true;
 }
 
-bool write_disk(const char *file_name) {
+bool write_disk(std::string file_name) {
 	std::ofstream out_data;
-	out_data.open(file_name);
+	out_data.open(file_name.c_str());
 	if(!out_data.is_open())
 		return false;
 	for (int i = 0; i < disk.size(); i++)
@@ -226,9 +252,9 @@ bool write_disk(const char *file_name) {
 }
 
 // Write the data to the disk
-bool save_data(const char *file_name) {
+bool save_data(std::string file_name) {
 	std::ofstream out_data;
-	out_data.open(file_name);
+	out_data.open(file_name.c_str());
 	if(!out_data.is_open())
 		return false;
 	for (int i = 0; i < table.size(); i++)
