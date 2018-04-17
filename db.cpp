@@ -81,6 +81,7 @@ void insert(std::string name, double value){
 	table.push_back(tmp);
 	disk[last_file_id].end_id = tmp.id;
 	oss.str("");
+	oss.clear();
 	oss << ccp_to_str(DATABASE) + ccp_to_str(DATAFILE) << last_file_id << EXT;
 	save_data(oss.str().c_str());
 	sem_post(&database); // up on database's semaphore
@@ -92,7 +93,6 @@ void get_id(long lower, long upper){
 	std::ostringstream oss;
 	std::cout << "ID  NAME  VALUE" << std::endl;
 	for(int i = 0; i < disk.size(); i++){
-		std::cout << ccp_to_str(DATABASE) + ccp_to_str(DATAFILE) << disk[i].id << EXT << std::endl;
 		oss << ccp_to_str(DATABASE) + ccp_to_str(DATAFILE) << disk[i].id << EXT;
 		if(read_data(oss.str().c_str()))
 			std::cout << "Data read succesfully!" << std::endl;
@@ -103,6 +103,8 @@ void get_id(long lower, long upper){
 		for(int j = 0; j < table.size(); j++)
 			if(table[i].id >= lower && table[i].id <= upper)
 				std::cout << table[j].id << " " << table[j].name << " " << table[j].value << std::endl;
+		oss.str("");
+		oss.clear();
 	}
 
 	unlock_reader();
@@ -124,6 +126,8 @@ void get_name(std::string lower, std::string upper){
 		for(int j = 0; j < table.size(); j++)
 			if(table[i].name.compare(lower) >= 0 && table[i].name.compare(upper) <= 0)
 				std::cout << table[j].id << " " << table[j].name << " " << table[j].value << std::endl;
+		oss.str("");
+		oss.clear();
 	}
 
 	unlock_reader();
@@ -145,6 +149,8 @@ void get_value(double lower, double upper){
 		for(int j = 0; j < table.size(); j++)
 			if(table[i].value >= lower && table[i].value <= upper)
 				std::cout << table[j].id << " " << table[j].name << " " << table[j].value << std::endl;
+		oss.str("");
+		oss.clear();
 	}
 
 	unlock_reader();
@@ -226,8 +232,14 @@ bool read_disk(std::string file_name) {
 bool read_data(std::string file_name) {
 	std::ifstream in_data;
 	in_data.open(file_name.c_str());
+
+	// std::cout << file_name << std::endl;
+
 	if(!in_data.is_open())
 		return false;
+
+	// std::cout << "is opened" << std::endl;
+
 	table = std::vector<row>();
 	row tmp;
 	while(in_data >> tmp.id >> tmp.name >> tmp.value){
