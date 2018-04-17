@@ -23,9 +23,9 @@
 
 sem_t mutex;    // Mutex semaphore
 sem_t database; // Database semaphore
-// sem_t request;  // For writing data
 
-long next_id = 0;   // Stores the next available id to be used when creating a new row
+bool write_request = false;
+long next_id = 0; // Stores the next available id to be used when creating a new row
 long last_file_id = 0;
 long file_size = 1000; // Size of one storage file
 unsigned int num_of_readers = 0;
@@ -35,11 +35,7 @@ std::vector<file> disk; // Files presents in the disk
 // pthread_t reader_id[N_READERS]; // ID of threads/readers
 // pthread_t writer_id;            // ID of thread/writer
 
-// typedef struct {
-// 	unsigned int id, seed;
-// } thread_args;
-
-// void *thread_func(void *arg) {
+// void *reader_func(void *arg) {
 // 	thread_args *args = (thread_args *) arg;
 	
 // 	unsigned int id = args->id,
@@ -48,7 +44,24 @@ std::vector<file> disk; // Files presents in the disk
 // 	for(int i = 0; i < N_FRAMES; i++) {
 // 		sem_wait(&mutex); // down no semaforo
 // 		std::cout << id << " accessing" << std::endl;
-// 		std::cout << "generate " << rand_r(&seed) % 100 << std::endl;
+// 		std::cout << "generate " << rand_prob(seed) << std::endl;
+// 		std::cout << std::endl;
+// 		sem_post(&mutex); // up no semaforo
+// 	}
+
+// 	return 0;
+// }
+
+// void *writer_func(void *arg) {
+// 	thread_args *args = (thread_args *) arg;
+	
+// 	unsigned int id = args->id,
+// 	             seed = args->seed;
+
+// 	for(int i = 0; i < N_FRAMES; i++) {
+// 		sem_wait(&mutex); // down no semaforo
+// 		std::cout << id << " accessing" << std::endl;
+// 		std::cout << "generate " << rand_prob(seed) % 100 << std::endl;
 // 		std::cout << std::endl;
 // 		sem_post(&mutex); // up no semaforo
 // 	}
@@ -62,6 +75,8 @@ bool read_data(std::string file_name);
 bool save_data(std::string file_name);
 
 void lock_reader() {
+	while(write_request) { } // wait until current writing finish
+
 	sem_wait(&mutex);
 	num_of_readers++;
 	if(num_of_readers == 1)
@@ -77,7 +92,6 @@ void unlock_reader() {
 	sem_post(&mutex);
 }
 
-// TODO: make request to insert. after request, no new readers are allowed
 void insert(std::string name, double value){
 	file f;
 	std::ostringstream oss;
@@ -85,6 +99,7 @@ void insert(std::string name, double value){
 	row tmp = { 0, name, value };
 	std::string data_path = ccp_to_str(DATABASE)+ccp_to_str(DATAFILE);
 
+	write_request = true;
 	sem_wait(&database); // down on database's semaphore
 
 	oss << data_path << last_file_id << EXT;
@@ -109,6 +124,7 @@ void insert(std::string name, double value){
 	save_data(oss.str().c_str());
 
 	sem_post(&database); // up on database's semaphore
+	write_request = false;
 }
 
 void get_id(long lower, long upper){
@@ -208,14 +224,14 @@ void get_value(double lower, double upper){
 // 		reader_args[i].id = i;
 // 		pthread_create (&reader_id[i], // id
 // 			            NULL,          // ?
-// 			            thread_func,   // funçao da thread
+// 			            reader_func,   // funçao da thread
 // 			            (void *) &reader_args[i]); // argumento
 // 	}
 
-// 	writer_args.id = N_READERS;
+// 	writer_args.id = N_READERS; // writer has the last ID
 // 	pthread_create(&writer_id,
 // 		           NULL,
-// 		           thread_func,
+// 		           writer_func,
 // 		           (void *) &writer_args);
 
 // 	for(int i = 0; i < N_READERS; i++) // wait all threads to finish
@@ -246,7 +262,7 @@ int main(int argc, char* argv[]) {
 		exit(EXIT_FAILURE);
 	}
 
-	// For generate DB
+	// For generating DB
 	// for (int i = 0; i < 2000; i++)
 	// 	insert("a", 1);
 

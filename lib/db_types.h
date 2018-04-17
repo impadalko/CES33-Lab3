@@ -3,9 +3,9 @@
 
 // Data format to be stored in the DB
 typedef struct {
+	double value;
 	long id;
 	std::string name;
-	double value;
 } row;
 
 // Data format of a storage file
@@ -14,5 +14,11 @@ typedef struct {
 	long start_id;
 	long end_id;
 } file;
+
+// Arguments to be passed to threads
+typedef struct {
+	unsigned int id;
+	unsigned int seed;
+} thread_args;
 
 #endif
