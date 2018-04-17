@@ -7,12 +7,14 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <stdlib.h>
+#include <unistd.h> // usleep
 
 #include "lib/aux_tools.h"
 #include "lib/db_types.h"
 #include "lib/db_tools.h"
 
 #define N_READERS 3
+#define N_FRAMES 3
 
 #define DATABASE "database/"
 #define DATAFILE "data"
@@ -30,20 +32,29 @@ unsigned int num_of_readers = 0;
 std::vector<row> table; // Data representation in memory
 std::vector<file> disk; // Files presents in the disk
 
-pthread_t reader_id[N_READERS]; // ID of threads/readers
+// pthread_t reader_id[N_READERS]; // ID of threads/readers
+// pthread_t writer_id;            // ID of thread/writer
 
-void *thread_func(void *arg) {
-	int *id = (int *) arg;
+// typedef struct {
+// 	unsigned int id, seed;
+// } thread_args;
 
-	while(true) {
-		sem_wait(&mutex); // down no semaforo
-		std::cout << *id << " accessing" << std::endl;
-		sem_post(&mutex); // up no semaforo
-	}
+// void *thread_func(void *arg) {
+// 	thread_args *args = (thread_args *) arg;
+	
+// 	unsigned int id = args->id,
+// 	             seed = args->seed;
 
-	delete id;
-	return 0;
-}
+// 	for(int i = 0; i < N_FRAMES; i++) {
+// 		sem_wait(&mutex); // down no semaforo
+// 		std::cout << id << " accessing" << std::endl;
+// 		std::cout << "generate " << rand_r(&seed) % 100 << std::endl;
+// 		std::cout << std::endl;
+// 		sem_post(&mutex); // up no semaforo
+// 	}
+
+// 	return 0;
+// }
  	
 bool read_disk(std::string file_name);
 bool write_disk(std::string file_name);
@@ -184,57 +195,76 @@ void get_value(double lower, double upper){
 	unlock_reader();
 }
 
+// void bizu_das_threads() {
+// 	thread_args reader_args[N_READERS],
+// 	            writer_args;
+
+// 	srand(time(NULL)); // to generate seeds	
+// 	for(int i = 0; i < N_READERS ; i++) // generate seeds
+// 		reader_args[i].seed = rand();
+// 	writer_args.seed = rand();
+
+// 	for(int i = 0; i < N_READERS; i++) { // cria as threads
+// 		reader_args[i].id = i;
+// 		pthread_create (&reader_id[i], // id
+// 			            NULL,          // ?
+// 			            thread_func,   // funçao da thread
+// 			            (void *) &reader_args[i]); // argumento
+// 	}
+
+// 	writer_args.id = N_READERS;
+// 	pthread_create(&writer_id,
+// 		           NULL,
+// 		           thread_func,
+// 		           (void *) &writer_args);
+
+// 	for(int i = 0; i < N_READERS; i++) // wait all threads to finish
+//  		pthread_join(reader_id[i], NULL);
+//  	pthread_join(writer_id, NULL);
+// }
+
 int main(int argc, char* argv[]) {
-	// std::string index_path = ccp_to_str(DATABASE)+ccp_to_str(INDEX)+ccp_to_str(EXT);
+	std::string index_path = ccp_to_str(DATABASE)+ccp_to_str(INDEX)+ccp_to_str(EXT);
 
 	sem_init(&mutex, 0, 1);    // intialize mutex
-	// sem_init(&database, 0, 1); // initialize database semaphore
+	sem_init(&database, 0, 1); // initialize database semaphore
 
-	// ----- ----- ----- ----- -----
-	for(long i = 0; i < N_READERS; i++) { // cria as threads
-		int *id = new int;
-
-		*id = i;
-		pthread_create (&reader_id[i],    // id
-			            NULL,             // sem argumentos
-			            thread_func,      // funçao da thread
-			            (void *) id);     // argumento
+	if(!check_database(DATABASE)) {
+		message("Creating database!");
+		if(create_database(DATABASE))
+			message("Database created!");
+		else {
+			message("Couldn't create database!");
+			exit(EXIT_FAILURE);
+		}
 	}
 
-	for(int i = 0; i < N_READERS; i++) // une as threads, para aguardar o termino de todas antes de prosseguir
- 		pthread_join(reader_id[i], NULL);
-	// ----- ----- ----- ----- -----
+	if(read_disk(index_path))
+		message("Index read succesfully!");
+	else {
+		message("Couldn't read index!");
+		exit(EXIT_FAILURE);
+	}
 
-	// if(!check_database(DATABASE)) {
-	// 	message("Creating database!");
-	// 	if(create_database(DATABASE))
-	// 		message("Database created!");
-	// 	else {
-	// 		message("Couldn't create database!");
-	// 		exit(EXIT_FAILURE);
-	// 	}
-	// }
-
-	// if(read_disk(index_path))
-	// 	message("Index read succesfully!");
-	// else {
-	// 	message("Couldn't read index!");
-	// 	exit(EXIT_FAILURE);
-	// }
-
+	// For generate DB
 	// for (int i = 0; i < 2000; i++)
 	// 	insert("a", 1);
 
+	// ID test
 	// get_id(990, 1010);
+
+	// NAME test
 	// get_name("a", "z");
+
+	// VALUE test
 	// get_value(1, 2);
 
-	// if(write_disk(index_path))
-	// 	message("Index wrote succesfully!");
-	// else {
-	// 	message("Couldn't write index!");
-	// 	exit(EXIT_FAILURE);
-	// }
+	if(write_disk(index_path))
+		message("Index wrote succesfully!");
+	else {
+		message("Couldn't write index!");
+		exit(EXIT_FAILURE);
+	}
 
 	return EXIT_SUCCESS;
 }
