@@ -1,4 +1,4 @@
 #!/bin/bash
 
-g++ -pthread db.cpp db_lib.cpp -o bin
+g++ -pthread main.cpp lib/*.cpp -o bin
 ./bin

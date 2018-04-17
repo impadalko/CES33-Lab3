@@ -1,5 +1,5 @@
-#ifndef DB_LIB
-#define DB_LIB
+#ifndef LIB_DB_TYPES
+#define LIB_DB_TYPES
 
 // Data format to be stored in the DB
 typedef struct {
@@ -14,11 +14,5 @@ typedef struct {
 	long start_id;
 	long end_id;
 } file;
-
-// Shows string 'str' in 'stdout'
-void message(std::string str);
-
-// Converts "const char *" to "std::string"
-std::string ccp_to_str(const char *str);
 
 #endif

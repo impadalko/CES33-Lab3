@@ -3,11 +3,14 @@
 #include <iostream>
 #include <sstream>
 #include <vector>
-#include <sys/stat.h>
+
 #include <pthread.h>
 #include <semaphore.h>
 #include <stdlib.h>
-#include "db_lib.h"
+
+#include "lib/aux_tools.h"
+#include "lib/db_types.h"
+#include "lib/db_tools.h"
 
 #define DATABASE "database/"
 #define DATAFILE "data"
@@ -24,8 +27,6 @@ unsigned int num_of_readers = 0;
 std::vector<row> table; // Data representation in memory
 std::vector<file> disk; // Files presents in the disk
 
-bool check_database();
-bool create_database();
 bool read_disk(std::string file_name);
 bool write_disk(std::string file_name);
 bool read_data(std::string file_name);
@@ -47,6 +48,7 @@ void unlock_reader() {
 	sem_post(&mutex);
 }
 
+// TODO: make request to insert. after request, no new readers are allowed
 void insert(std::string name, double value){
 	file f;
 	std::ostringstream oss;
@@ -54,7 +56,7 @@ void insert(std::string name, double value){
 	row tmp = { 0, name, value };
 	std::string data_path = ccp_to_str(DATABASE)+ccp_to_str(DATAFILE);
 
-	sem_wait(&database); // sem_wait on database's semaphore
+	sem_wait(&database); // down on database's semaphore
 
 	oss << data_path << last_file_id << EXT;
 	read_data(oss.str().c_str());
@@ -81,10 +83,10 @@ void insert(std::string name, double value){
 }
 
 void get_id(long lower, long upper){
-	lock_reader();
-
 	std::ostringstream oss;
 	std::string data_path = ccp_to_str(DATABASE)+ccp_to_str(DATAFILE);
+
+	lock_reader();
 
 	message("ID  NAME  VALUE");
 	for(int i = 0; i < disk.size(); i++){
@@ -109,10 +111,10 @@ void get_id(long lower, long upper){
 }
 
 void get_name(std::string lower, std::string upper){
-	lock_reader();
-
 	std::ostringstream oss;
 	std::string data_path = ccp_to_str(DATABASE)+ccp_to_str(DATAFILE);
+
+	lock_reader();
 
 	message("ID  NAME  VALUE");
 	for(int i = 0; i < disk.size(); i++){
@@ -137,10 +139,10 @@ void get_name(std::string lower, std::string upper){
 }
 
 void get_value(double lower, double upper){
-	lock_reader();
-
 	std::ostringstream oss;
 	std::string data_path = ccp_to_str(DATABASE)+ccp_to_str(DATAFILE);
+
+	lock_reader();
 
 	message("ID  NAME  VALUE");
 	for(int i = 0; i < disk.size(); i++){
@@ -170,9 +172,9 @@ int main(int argc, char* argv[]) {
 	sem_init(&mutex, 0, 1);    // intialize mutex
 	sem_init(&database, 0, 1); // initialize database semaphore
 
-	if(!check_database()) {
+	if(!check_database(DATABASE)) {
 		message("Creating database!");
-		if(create_database())
+		if(create_database(DATABASE))
 			message("Database created!");
 		else {
 			message("Couldn't create database!");
@@ -202,20 +204,6 @@ int main(int argc, char* argv[]) {
 	}
 
 	return EXIT_SUCCESS;
-}
-
-// Checks if database dir exists
-bool check_database() {
-	struct stat info;
-	if(stat(DATABASE, &info) == 0)
-		return true;
-	return false;
-}
-
-bool create_database() {
-	if(mkdir(DATABASE, S_IRWXU | S_IRWXG | S_IRWXO) >= 0)
-		return true;
-	return false;
 }
 
 // Load disk info to memory
