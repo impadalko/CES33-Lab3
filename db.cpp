@@ -3,30 +3,16 @@
 #include <iostream>
 #include <sstream>
 #include <vector>
-#include <sys/types.h>
 #include <sys/stat.h>
 #include <pthread.h>
 #include <semaphore.h>
 #include <stdlib.h>
+#include "db_lib.h"
 
 #define DATABASE "database/"
 #define DATAFILE "data"
 #define INDEX    "index"
 #define EXT      ".txt"
-
-// Data format to be stored in the DB
-typedef struct {
-	long id;
-	std::string name;
-	double value;
-} row;
-
-// Data format of a storage file
-typedef struct {
-	long id;
-	long start_id;
-	long end_id;
-} file;
 
 sem_t mutex;    // Mutex semaphore
 sem_t database; // Database semaphore
@@ -37,9 +23,6 @@ long file_size = 1000; // Size of one storage file
 unsigned int num_of_readers = 0;
 std::vector<row> table; // Data representation in memory
 std::vector<file> disk; // Files presents in the disk
-
-void message(std::string str);
-std::string ccp_to_str(const char *str); // "const char *" to "std::string"
 
 bool check_database();
 bool create_database();
@@ -221,14 +204,6 @@ int main(int argc, char* argv[]) {
 	return EXIT_SUCCESS;
 }
 
-void message(std::string str) {
-	std::cout << str << std::endl;
-}
-
-std::string ccp_to_str(const char *str) {
-	return std::string(str, strlen(str));
-}
-
 // Checks if database dir exists
 bool check_database() {
 	struct stat info;
@@ -279,6 +254,7 @@ bool read_data(std::string file_name) {
 	return true;
 }
 
+// Write data to disk
 bool write_disk(std::string file_name) {
 	std::ofstream out_data;
 	out_data.open(file_name.c_str());
@@ -290,7 +266,6 @@ bool write_disk(std::string file_name) {
 	return true;
 }
 
-// Write the data to the disk
 bool save_data(std::string file_name) {
 	std::ofstream out_data;
 	out_data.open(file_name.c_str());
