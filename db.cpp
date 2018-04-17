@@ -38,7 +38,9 @@ unsigned int num_of_readers = 0;
 std::vector<row> table; // Data representation in memory
 std::vector<file> disk; // Files presents in the disk
 
+void message(std::string str);
 std::string ccp_to_str(const char *str); // "const char *" to "std::string"
+
 bool check_database();
 bool create_database();
 bool read_disk(std::string file_name);
@@ -63,13 +65,18 @@ void unlock_reader() {
 }
 
 void insert(std::string name, double value){
-	row tmp = { 0, name, value };
-	sem_wait(&database); // sem_wait on database's semaphore
 	file f;
 	std::ostringstream oss;
-	oss << ccp_to_str(DATABASE) + ccp_to_str(DATAFILE) << last_file_id << EXT;
+
+	row tmp = { 0, name, value };
+	std::string data_path = ccp_to_str(DATABASE)+ccp_to_str(DATAFILE);
+
+	sem_wait(&database); // sem_wait on database's semaphore
+
+	oss << data_path << last_file_id << EXT;
 	read_data(oss.str().c_str());
 	tmp.id = next_id;
+
 	// if the file is full, create a new one and add to the index
 	if(table.size() == file_size){
 		table.clear();
@@ -78,12 +85,15 @@ void insert(std::string name, double value){
 		f.end_id = tmp.id;
 		disk.push_back(f);
 	}
+
 	table.push_back(tmp);
 	disk[last_file_id].end_id = tmp.id;
+
 	oss.str("");
 	oss.clear();
-	oss << ccp_to_str(DATABASE) + ccp_to_str(DATAFILE) << last_file_id << EXT;
+	oss << data_path << last_file_id << EXT;
 	save_data(oss.str().c_str());
+
 	sem_post(&database); // up on database's semaphore
 }
 
@@ -91,18 +101,23 @@ void get_id(long lower, long upper){
 	lock_reader();
 
 	std::ostringstream oss;
-	std::cout << "ID  NAME  VALUE" << std::endl;
+	std::string data_path = ccp_to_str(DATABASE)+ccp_to_str(DATAFILE);
+
+	message("ID  NAME  VALUE");
 	for(int i = 0; i < disk.size(); i++){
-		oss << ccp_to_str(DATABASE) + ccp_to_str(DATAFILE) << disk[i].id << EXT;
+		oss << data_path << disk[i].id << EXT;
+		
 		if(read_data(oss.str().c_str()))
-			std::cout << "Data read succesfully!" << std::endl;
+			message("Data read succesfully!");
 		else {
-			std::cout << "Couldn't read data!" << std::endl;
+			message("Couldn't read data!");
 			exit(EXIT_FAILURE);
 		}
+		
 		for(int j = 0; j < table.size(); j++)
-			if(table[i].id >= lower && table[i].id <= upper)
+			if(table[j].id >= lower && table[j].id <= upper)
 				std::cout << table[j].id << " " << table[j].name << " " << table[j].value << std::endl;
+		
 		oss.str("");
 		oss.clear();
 	}
@@ -114,18 +129,23 @@ void get_name(std::string lower, std::string upper){
 	lock_reader();
 
 	std::ostringstream oss;
-	std::cout << "ID  NAME  VALUE" << std::endl;
+	std::string data_path = ccp_to_str(DATABASE)+ccp_to_str(DATAFILE);
+
+	message("ID  NAME  VALUE");
 	for(int i = 0; i < disk.size(); i++){
-		oss << ccp_to_str(DATABASE) + ccp_to_str(DATAFILE) << disk[i].id << EXT;
+		oss << data_path << disk[i].id << EXT;
+
 		if(read_data(oss.str().c_str()))
-			std::cout << "Data read succesfully!" << std::endl;
+			message("Data read succesfully!");
 		else {
-			std::cout << "Couldn't read data!" << std::endl;
+			message("Couldn't read data!");
 			exit(EXIT_FAILURE);
 		}
+
 		for(int j = 0; j < table.size(); j++)
 			if(table[i].name.compare(lower) >= 0 && table[i].name.compare(upper) <= 0)
 				std::cout << table[j].id << " " << table[j].name << " " << table[j].value << std::endl;
+
 		oss.str("");
 		oss.clear();
 	}
@@ -137,18 +157,23 @@ void get_value(double lower, double upper){
 	lock_reader();
 
 	std::ostringstream oss;
-	std::cout << "ID  NAME  VALUE" << std::endl;
+	std::string data_path = ccp_to_str(DATABASE)+ccp_to_str(DATAFILE);
+
+	message("ID  NAME  VALUE");
 	for(int i = 0; i < disk.size(); i++){
-		oss << ccp_to_str(DATABASE) + ccp_to_str(DATAFILE) << disk[i].id << EXT;
+		oss << data_path << disk[i].id << EXT;
+
 		if(read_data(oss.str().c_str()))
-			std::cout << "Data read succesfully!" << std::endl;
+			message("Data read succesfully!");
 		else {
-			std::cout << "Couldn't read data!" << std::endl;
+			message("Couldn't read data!");
 			exit(EXIT_FAILURE);
 		}
+
 		for(int j = 0; j < table.size(); j++)
 			if(table[i].value >= lower && table[i].value <= upper)
 				std::cout << table[j].id << " " << table[j].name << " " << table[j].value << std::endl;
+
 		oss.str("");
 		oss.clear();
 	}
@@ -157,39 +182,45 @@ void get_value(double lower, double upper){
 }
 
 int main(int argc, char* argv[]) {
+	std::string index_path = ccp_to_str(DATABASE)+ccp_to_str(INDEX)+ccp_to_str(EXT);
+
 	sem_init(&mutex, 0, 1);    // intialize mutex
 	sem_init(&database, 0, 1); // initialize database semaphore
 
 	if(!check_database()) {
-		std::cout << "Creating database!" << std::endl;
+		message("Creating database!");
 		if(create_database())
-			std::cout << "Database created!" << std::endl;
+			message("Database created!");
 		else {
-			std::cout << "Couldn't create database!" << std::endl;
+			message("Couldn't create database!");
 			exit(EXIT_FAILURE);
 		}
 	}
 
-	if(read_disk(ccp_to_str(DATABASE) + ccp_to_str(INDEX) + ccp_to_str(EXT)))
-		std::cout << "Index read succesfully!" << std::endl;
+	if(read_disk(index_path))
+		message("Index read succesfully!");
 	else {
-		std::cout << "Couldn't read index!" << std::endl;
+		message("Couldn't read index!");
 		exit(EXIT_FAILURE);
 	}
 
-	for (int i = 0; i < 2000; i++)
-		insert("a", 1);
+	// for (int i = 0; i < 2000; i++)
+	// 	insert("a", 1);
 
-	get_id(500, 1500);
+	get_id(990, 1010);
 
-	if(write_disk(ccp_to_str(DATABASE) + ccp_to_str(INDEX) + ccp_to_str(EXT)))
-		std::cout << "Index wrote succesfully!" << std::endl;
+	if(write_disk(index_path))
+		message("Index wrote succesfully!");
 	else {
-		std::cout << "Couldn't write index!" << std::endl;
+		message("Couldn't write index!");
 		exit(EXIT_FAILURE);
 	}
 
-	return 0;
+	return EXIT_SUCCESS;
+}
+
+void message(std::string str) {
+	std::cout << str << std::endl;
 }
 
 std::string ccp_to_str(const char *str) {
@@ -232,14 +263,8 @@ bool read_disk(std::string file_name) {
 bool read_data(std::string file_name) {
 	std::ifstream in_data;
 	in_data.open(file_name.c_str());
-
-	// std::cout << file_name << std::endl;
-
 	if(!in_data.is_open())
 		return false;
-
-	// std::cout << "is opened" << std::endl;
-
 	table = std::vector<row>();
 	row tmp;
 	while(in_data >> tmp.id >> tmp.name >> tmp.value){
