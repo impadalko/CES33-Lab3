@@ -15,59 +15,122 @@
 
 #define N_READERS 3
 #define N_FRAMES 3
+#define FRAME_STEP (int) (1.0 * 1e6) // (int) (SECONDS * 1e6) MICROSECONDS
+
+#define ACTION_WRITE     1
+
+#define ACTION_WAIT      0 
+#define ACTION_GET_ID    1
+#define ACTION_GET_NAME  2
+#define ACTION_GET_VALUE 3
+#define POSSIBLE_ACTIONS 4
 
 #define DATABASE "database/"
 #define DATAFILE "data"
 #define INDEX    "index"
 #define EXT      ".txt"
 
+// thread stuff
 sem_t mutex;    // Mutex semaphore
 sem_t database; // Database semaphore
-
+sem_t show;     // For printing output
 bool write_request = false;
+unsigned int num_of_readers = 0;
+pthread_t reader_id[N_READERS]; // ID of threads/readers
+pthread_t writer_id;            // ID of thread/writer
+
+// db stuff
 long next_id = 0; // Stores the next available id to be used when creating a new row
 long last_file_id = 0;
 long file_size = 1000; // Size of one storage file
-unsigned int num_of_readers = 0;
 std::vector<row> table; // Data representation in memory
 std::vector<file> disk; // Files presents in the disk
 
-// pthread_t reader_id[N_READERS]; // ID of threads/readers
-// pthread_t writer_id;            // ID of thread/writer
-
-// void *reader_func(void *arg) {
-// 	thread_args *args = (thread_args *) arg;
+void *reader_func(void *_args) {
+	thread_args *args = (thread_args *) _args;
 	
-// 	unsigned int id = args->id,
-// 	             seed = args->seed;
+	unsigned int id = args->id,
+	             seed = args->seed;
 
-// 	for(int i = 0; i < N_FRAMES; i++) {
-// 		sem_wait(&mutex); // down no semaforo
-// 		std::cout << id << " accessing" << std::endl;
-// 		std::cout << "generate " << rand_prob(seed) << std::endl;
-// 		std::cout << std::endl;
-// 		sem_post(&mutex); // up no semaforo
-// 	}
+	sem_wait(&show);
+	std::cout << "reader " << id << " is ONLINE\n";
+	sem_post(&show);
 
-// 	return 0;
-// }
+	for(int i = 0; i < N_FRAMES; i++) {
+		std::string str;
+		int action = (int) (rand_prob(&seed) * POSSIBLE_ACTIONS);
 
-// void *writer_func(void *arg) {
-// 	thread_args *args = (thread_args *) arg;
+		switch(action) {
+			case ACTION_WAIT:
+				sem_wait(&show);
+				message("reader " + std::to_string(id) + " will wait");
+				sem_post(&show);
+
+				usleep(FRAME_STEP);
+				break;
+
+			case ACTION_GET_ID:
+				sem_wait(&show);
+				message("reader " + std::to_string(id) + " will get element by id");
+				sem_post(&show);
+
+				usleep(FRAME_STEP);
+				// get_id(990, 1010);
+				break;
+
+			case ACTION_GET_NAME:
+				sem_wait(&show);
+				message("reader " + std::to_string(id) + " will get element by name");
+				sem_post(&show);
+
+				usleep(FRAME_STEP);
+				// get_name("a", "z");
+				break;
+
+			case ACTION_GET_VALUE:
+				sem_wait(&show);
+				message("reader " + std::to_string(id) + " will get element by value");
+				sem_post(&show);
+
+				usleep(FRAME_STEP);
+				// get_value(0.5, 1.5);
+				break;
+
+			default:
+				break;
+		}
+
+		// sem_wait(&mutex); // down no semaforo
+		// std::cout << id << " accessing\n";
+		// std::cout << "generate " << rand_prob(&seed) << std::endl;
+		// std::cout << std::endl;
+		// sem_post(&mutex); // up no semaforo
+	}
+
+	sem_wait(&show);
+	std::cout << "reader " << id << " is OFFLINE\n";
+	sem_post(&show);
+
+	return NULL;
+}
+
+// TODO: implement this function
+void *writer_func(void *_args) {
+	thread_args *args = (thread_args *) _args;
 	
-// 	unsigned int id = args->id,
-// 	             seed = args->seed;
+	unsigned int id = args->id,
+	             seed = args->seed;
 
-// 	for(int i = 0; i < N_FRAMES; i++) {
-// 		sem_wait(&mutex); // down no semaforo
-// 		std::cout << id << " accessing" << std::endl;
-// 		std::cout << "generate " << rand_prob(seed) % 100 << std::endl;
-// 		std::cout << std::endl;
-// 		sem_post(&mutex); // up no semaforo
-// 	}
+	// for(int i = 0; i < N_FRAMES; i++) {
+	// 	sem_wait(&mutex); // down no semaforo
+	// 	std::cout << id << " accessing" << std::endl;
+	// 	std::cout << "generate " << rand_prob(&seed) << std::endl;
+	// 	std::cout << std::endl;
+	// 	sem_post(&mutex); // up no semaforo
+	// }
 
-// 	return 0;
-// }
+	return NULL;
+}
  	
 bool read_disk(std::string file_name);
 bool write_disk(std::string file_name);
@@ -96,7 +159,7 @@ void insert(std::string name, double value){
 	file f;
 	std::ostringstream oss;
 
-	row tmp = { 0, name, value };
+	row tmp = { value, 0, name };
 	std::string data_path = ccp_to_str(DATABASE)+ccp_to_str(DATAFILE);
 
 	write_request = true;
@@ -123,6 +186,7 @@ void insert(std::string name, double value){
 	oss << data_path << last_file_id << EXT;
 	save_data(oss.str().c_str());
 
+	usleep(FRAME_STEP); // wait
 	sem_post(&database); // up on database's semaphore
 	write_request = false;
 }
@@ -152,6 +216,7 @@ void get_id(long lower, long upper){
 		oss.clear();
 	}
 
+	usleep(FRAME_STEP); // wait
 	unlock_reader();
 }
 
@@ -180,6 +245,7 @@ void get_name(std::string lower, std::string upper){
 		oss.clear();
 	}
 
+	usleep(FRAME_STEP); // wait
 	unlock_reader();
 }
 
@@ -208,42 +274,44 @@ void get_value(double lower, double upper){
 		oss.clear();
 	}
 
+	usleep(FRAME_STEP); // wait
 	unlock_reader();
 }
 
-// void bizu_das_threads() {
-// 	thread_args reader_args[N_READERS],
-// 	            writer_args;
+void thread_test() {
+	thread_args reader_args[N_READERS],
+	            writer_args;
 
-// 	srand(time(NULL)); // to generate seeds	
-// 	for(int i = 0; i < N_READERS ; i++) // generate seeds
-// 		reader_args[i].seed = rand();
-// 	writer_args.seed = rand();
+	srand(time(NULL)); // to generate seeds	
+	for(int i = 0; i < N_READERS ; i++) // generate seeds
+		reader_args[i].seed = rand();
+	writer_args.seed = rand();
 
-// 	for(int i = 0; i < N_READERS; i++) { // cria as threads
-// 		reader_args[i].id = i;
-// 		pthread_create (&reader_id[i], // id
-// 			            NULL,          // ?
-// 			            reader_func,   // funçao da thread
-// 			            (void *) &reader_args[i]); // argumento
-// 	}
+	for(int i = 0; i < N_READERS; i++) { // cria as threads
+		reader_args[i].id = i;
+		pthread_create (&reader_id[i], // id
+			            NULL,          // ?
+			            reader_func,   // funçao da thread
+			            (void *) &reader_args[i]); // argumento
+	}
 
-// 	writer_args.id = N_READERS; // writer has the last ID
-// 	pthread_create(&writer_id,
-// 		           NULL,
-// 		           writer_func,
-// 		           (void *) &writer_args);
+	writer_args.id = N_READERS; // writer has the last ID
+	pthread_create(&writer_id,
+		           NULL,
+		           writer_func,
+		           (void *) &writer_args);
 
-// 	for(int i = 0; i < N_READERS; i++) // wait all threads to finish
-//  		pthread_join(reader_id[i], NULL);
-//  	pthread_join(writer_id, NULL);
-// }
+	for(int i = 0; i < N_READERS; i++) // wait all threads to finish
+ 		pthread_join(reader_id[i], NULL);
+ 	pthread_join(writer_id, NULL);
+}
 
 int main(int argc, char* argv[]) {
 	std::string index_path = ccp_to_str(DATABASE)+ccp_to_str(INDEX)+ccp_to_str(EXT);
 
 	sem_init(&mutex, 0, 1);    // intialize mutex
 	sem_init(&database, 0, 1); // initialize database semaphore
+	sem_init(&show, 0, 1);     // initialize semaphore
 
 	if(!check_database(DATABASE)) {
 		message("Creating database!");
@@ -262,9 +330,11 @@ int main(int argc, char* argv[]) {
 		exit(EXIT_FAILURE);
 	}
 
+	thread_test();
+
 	// For generating DB
 	// for (int i = 0; i < 2000; i++)
-	// 	insert("a", 1);
+		// insert("a", 1);
 
 	// ID test
 	// get_id(990, 1010);
