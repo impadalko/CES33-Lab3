@@ -58,8 +58,10 @@ bool database::create() {
 	word data_path = this->name + ccp_to_str("/") + ccp_to_str(DATA_NAME) + std::to_string(this->last_file_id) + ccp_to_str(EXT);
 	this->disk.push_back(file {this->last_file_id, 0, -1});
 
-	this->save_metadata();
-	this->save_data(data_path);
+	if(!this->save_metadata() || !this->save_data(data_path)) {
+		message("[DB]: Couldn't create database!");
+		return false;
+	}
 
 	message("[DB]: Database created!");
 	return true;
@@ -79,8 +81,6 @@ bool database::create_dummy(int rows) {
 	return true;
 }
 
-// write_request = true;
-// sem_wait(&database); // down on database's semaphore
 bool database::insert(word name, double value){
 	if(!this->available) {
 		message("[DB]: No database available!");
@@ -94,8 +94,17 @@ bool database::insert(word name, double value){
 	word data_path = this->name + ccp_to_str("/") + ccp_to_str(DATA_NAME);
 
 	oss << data_path << this->last_file_id << EXT;
-	this->load_data(oss.str().c_str());
-	tmp.id = this->next_id;
+	if(!this->load_data(oss.str().c_str())) {
+		message("[DB]: Couldn't read from database!");
+		return false;
+	}
+
+	tmp.id = ++this->next_id;
+
+	message("[DB]: Inserting");
+	message("      ID: " + std::to_string(this->next_id));
+	message("      NAME: " + name);
+	message("      VALUE: " + std::to_string(value));
 
 	// if the file is full, create a new one and add to the index
 	if(this->table.size() == ROWS_PER_TABLE){
@@ -112,17 +121,18 @@ bool database::insert(word name, double value){
 	oss.str("");
 	oss.clear();
 	oss << data_path << this->last_file_id << EXT;
-	this->save_data(oss.str().c_str());
+	if(!this->save_data(oss.str().c_str())) {
+		message("[DB]: Couldn't save data!");
+		return false;
+	}
+
+	return true;
 }
-// usleep(FRAME_STEP); // wait
-// sem_post(&database); // up on database's semaphore
-// write_request = false;
 
 bool database::is_available() {
 	return this->available;
 }
 
-// lock_reader();
 bool database::get_id(long int lower, long int upper, bool verbose){
 	if(!this->available) {
 		message("[DB]: No database available!");
@@ -133,12 +143,9 @@ bool database::get_id(long int lower, long int upper, bool verbose){
 	std::ostringstream oss;
 	word data_path = this->name + ccp_to_str("/") + ccp_to_str(DATA_NAME);
 
-	if(verbose) {
-		std::cout << "[DB]: Get by ID: " << lower << " to " << upper << std::endl;
-
-		// printf("");
+	std::cout << "[DB]: Get by ID: " << lower << " to " << upper << std::endl;
+	if(verbose)
 		message("ID  NAME  VALUE");
-	}
 
 	for(int i = 0; i < this->disk.size(); i++){
 		oss << data_path << this->disk[i].id << EXT;
@@ -163,10 +170,7 @@ bool database::get_id(long int lower, long int upper, bool verbose){
 
 	return true;
 }
-// usleep(FRAME_STEP); // wait
-// unlock_reader();
 
-// lock_reader();
 bool database::get_name(word lower, word upper, bool verbose){
 	if(!this->available) {
 		message("[DB]: No database available!");
@@ -177,11 +181,9 @@ bool database::get_name(word lower, word upper, bool verbose){
 	std::ostringstream oss;
 	word data_path = this->name + ccp_to_str("/") + ccp_to_str(DATA_NAME);
 
-	if(verbose) {
-		std::cout << "[DB]: Get by NAME: " << lower << " to " << upper << std::endl;
-		// printf("");
+	std::cout << "[DB]: Get by NAME: " << lower << " to " << upper << std::endl;
+	if(verbose)
 		message("ID  NAME  VALUE");
-	}
 
 	for(int i = 0; i < this->disk.size(); i++){
 		oss << data_path << this->disk[i].id << EXT;
@@ -206,10 +208,7 @@ bool database::get_name(word lower, word upper, bool verbose){
 
 	return true;
 }
-// usleep(FRAME_STEP); // wait
-// unlock_reader();
 
-// lock_reader();
 bool database::get_value(double lower, double upper, bool verbose){
 	if(!this->available) {
 		message("[DB]: No database available!");
@@ -220,11 +219,9 @@ bool database::get_value(double lower, double upper, bool verbose){
 	std::ostringstream oss;
 	word data_path = this->name + ccp_to_str("/") + ccp_to_str(DATA_NAME);
 
-	if(verbose) {
-		std::cout << "[DB]: Get by VALUE: " << lower << " to " << upper << std::endl;
-		// printf("");
+    std::cout << "[DB]: Get by VALUE: " << lower << " to " << upper << std::endl;
+	if(verbose)
 		message("ID  NAME  VALUE");
-	}
 
 	for(int i = 0; i < this->disk.size(); i++){
 		oss << data_path << this->disk[i].id << EXT;
@@ -249,8 +246,6 @@ bool database::get_value(double lower, double upper, bool verbose){
 
 	return true;
 }
-// usleep(FRAME_STEP); // wait
-// unlock_reader();
 
 bool database::check_dir() {
 	struct stat info;
@@ -285,7 +280,7 @@ bool database::load_data(word file_name) {
 		this->table.push_back(tmp);
 	}
 
-	this->next_id++;
+	// this->next_id++;
 	in_data.close();
 	return true;
 }

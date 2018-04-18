@@ -13,7 +13,7 @@
 #define META_NAME "index"
 #define EXT       ".dat"
 
-#define ROWS_PER_TABLE 5
+#define ROWS_PER_TABLE 100
 #define STRING_SIZE 20
 
 class database {
