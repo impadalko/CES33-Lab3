@@ -1,16 +1,13 @@
 #ifndef LIB_DATABASE_HPP
 #define LIB_DATABASE_HPP
 
-#include <cstring>
 #include <fstream>
-#include <iostream>
 #include <sstream>
 
 #include <sys/stat.h>
-#include <time.h>
 
 #include "aux_tools.h"
-#include "db_types.h"
+#include "my_types.h"
 
 #define DATA_NAME "data"
 #define META_NAME "index"
@@ -52,4 +49,3 @@ class database {
 };
 
 #endif
-

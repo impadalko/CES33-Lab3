@@ -7,16 +7,16 @@ database::database(word name) {
 	this->seed = time(NULL);
 
 	if(!this->check_dir()) {
-		message("No database found!");
+		message("[DB]: No database found!");
 		this->available = false;
 	} else {
-		message("Database found!");
+		message("[DB]: Database found!");
 		this->available = true;
 
 		if(this->load_metadata())
-			message("Metadata read succesfully!");
+			message("[DB]: Metadata read succesfully!");
 		else {
-			message("Couldn't read metadata!");
+			message("[DB]: Couldn't read metadata!");
 			this->available = false;
 		}
 	}
@@ -24,7 +24,7 @@ database::database(word name) {
 
 database::~database() {
 	if(this->available) {
-		message("Closing database!");
+		message("[DB]: Closing database!");
 
 		bool saved = this->save_metadata();
 		this->table.clear();
@@ -32,9 +32,9 @@ database::~database() {
 		this->available = false;
 		
 		if(saved)
-			message("Metadata saved succesfully!");
+			message("[DB]: Metadata saved succesfully!");
 		else {
-			message("Couldn't save metadata!");
+			message("[DB]: Couldn't save metadata!");
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -43,12 +43,12 @@ database::~database() {
 bool database::create() {
 	if(!this->check_dir()) {
 		if(!this->create_dir()) {
-			message("Couldn't create database!");
+			message("[DB]: Couldn't create database!");
 			this->available = false;
 			return false;
 		} 
 	} else {
-		message("Couldn't create database! It's already present!");
+		message("[DB]: Couldn't create database! It's already present!");
 		this->available = false;
 		return false;
 	}
@@ -61,7 +61,7 @@ bool database::create() {
 	this->save_metadata();
 	this->save_data(data_path);
 
-	message("Database created!");
+	message("[DB]: Database created!");
 	return true;
 }
 
@@ -83,7 +83,7 @@ bool database::create_dummy(int rows) {
 // sem_wait(&database); // down on database's semaphore
 bool database::insert(word name, double value){
 	if(!this->available) {
-		message("No database available!");
+		message("[DB]: No database available!");
 		return false;
 	}
 
@@ -125,7 +125,7 @@ bool database::is_available() {
 // lock_reader();
 bool database::get_id(long int lower, long int upper, bool verbose){
 	if(!this->available) {
-		message("No database available!");
+		message("[DB]: No database available!");
 		return false;
 	}
 
@@ -134,7 +134,7 @@ bool database::get_id(long int lower, long int upper, bool verbose){
 	word data_path = this->name + ccp_to_str("/") + ccp_to_str(DATA_NAME);
 
 	if(verbose) {
-		std::cout << "Get by ID: " << lower << " to " << upper << std::endl;
+		std::cout << "[DB]: Get by ID: " << lower << " to " << upper << std::endl;
 
 		// printf("");
 		message("ID  NAME  VALUE");
@@ -159,7 +159,7 @@ bool database::get_id(long int lower, long int upper, bool verbose){
 		oss.clear();
 	}
 
-	std::cout << ":: " << matches << " matches found" << std::endl;
+	std::cout << "[DB]: " << matches << " matches found" << std::endl;
 
 	return true;
 }
@@ -169,7 +169,7 @@ bool database::get_id(long int lower, long int upper, bool verbose){
 // lock_reader();
 bool database::get_name(word lower, word upper, bool verbose){
 	if(!this->available) {
-		message("No database available!");
+		message("[DB]: No database available!");
 		return false;
 	}
 
@@ -178,7 +178,7 @@ bool database::get_name(word lower, word upper, bool verbose){
 	word data_path = this->name + ccp_to_str("/") + ccp_to_str(DATA_NAME);
 
 	if(verbose) {
-		std::cout << "Get by NAME: " << lower << " to " << upper << std::endl;
+		std::cout << "[DB]: Get by NAME: " << lower << " to " << upper << std::endl;
 		// printf("");
 		message("ID  NAME  VALUE");
 	}
@@ -202,7 +202,7 @@ bool database::get_name(word lower, word upper, bool verbose){
 		oss.clear();
 	}
 
-	std::cout << ":: " << matches << " matches found" << std::endl;
+	std::cout << "[DB]: " << matches << " matches found" << std::endl;
 
 	return true;
 }
@@ -212,7 +212,7 @@ bool database::get_name(word lower, word upper, bool verbose){
 // lock_reader();
 bool database::get_value(double lower, double upper, bool verbose){
 	if(!this->available) {
-		message("No database available!");
+		message("[DB]: No database available!");
 		return false;
 	}
 
@@ -221,7 +221,7 @@ bool database::get_value(double lower, double upper, bool verbose){
 	word data_path = this->name + ccp_to_str("/") + ccp_to_str(DATA_NAME);
 
 	if(verbose) {
-		std::cout << "Get by VALUE: " << lower << " to " << upper << std::endl;
+		std::cout << "[DB]: Get by VALUE: " << lower << " to " << upper << std::endl;
 		// printf("");
 		message("ID  NAME  VALUE");
 	}
@@ -245,7 +245,7 @@ bool database::get_value(double lower, double upper, bool verbose){
 		oss.clear();
 	}
 	
-	std::cout << ":: " << matches << " matches found" << std::endl;
+	std::cout << "[DB]: " << matches << " matches found" << std::endl;
 
 	return true;
 }
@@ -267,7 +267,7 @@ bool database::create_dir() {
 
 bool database::load_data(word file_name) {
 	if(!this->available) {
-		message("No database available!");
+		message("[DB]: No database available!");
 		return false;
 	}
 
@@ -292,7 +292,7 @@ bool database::load_data(word file_name) {
 
 bool database::load_metadata() {
 	if(!this->available) {
-		message("No database available!");
+		message("[DB]: No database available!");
 		return false;
 	}
 
@@ -318,7 +318,7 @@ bool database::load_metadata() {
 
 bool database::save_metadata() {
 	if(!this->available) {
-		message("No database available!");
+		message("[DB]: No database available!");
 		return false;
 	}
 
@@ -340,7 +340,7 @@ bool database::save_metadata() {
 
 bool database::save_data(word file_name) {
 	if(!this->available) {
-		message("No database available!");
+		message("[DB]: No database available!");
 		return false;
 	}
 

@@ -1,8 +1,7 @@
-#ifndef LIB_DB_TYPES
-#define LIB_DB_TYPES
+#ifndef LIB_DB_TYPES_H
+#define LIB_DB_TYPES_H
 
 #include <iostream>
-#include <cstring>
 #include <vector>
 
 typedef std::string word;
@@ -27,7 +26,7 @@ typedef struct {
 	unsigned int seed;
 } thread_args;
 
-typedef std::vector<row>  data;
-typedef std::vector<file> files;
+typedef std::vector <row>  data;
+typedef std::vector <file> files;
 
 #endif

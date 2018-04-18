@@ -1,14 +1,12 @@
-#ifndef LIB_AUX_TOOLS
-#define LIB_AUX_TOOLS
+#ifndef LIB_AUX_TOOLS_H
+#define LIB_AUX_TOOLS_H
 
 #include <cstring>
-#include <iostream>
-#include <stdlib.h>
 
-#include "db_types.h"
+#include "my_types.h"
 
-#define MAX_VAL 1000000
-#define MAX_DBL 100.0
+#define MAX_VAL 1000000 // Max value used to calculate rand_prob()
+#define MAX_DBL 100.0   // Max generated value by rand_value()
 
 // Shows string 'str' in 'stdout'
 void message(word str);
