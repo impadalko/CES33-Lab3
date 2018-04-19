@@ -9,9 +9,9 @@
 
 // ----------------------------------------------------------------------------
 
-#define N_READERS    1 // Number of readers
+#define N_READERS    2 // Number of readers
 #define READER_STEPS 2 // Number of reader actions
-#define WRITER_STEPS 4 // Number of writer actions
+#define WRITER_STEPS 3 // Number of writer actions
 #define FRAME_STEP (int) (0.1 * 1e6) // (int) (SECONDS * 1e6) MICROSECONDS
 #define MAX_DELAY    5 // Maximum number of FRAME_STEPS in a delay
 
@@ -26,6 +26,10 @@
 #define DB_NAME "database" // Database name
 
 // ----------------------------------------------------------------------------
+
+sem_t mutex;     // Mutex semaphore
+sem_t db_access; // Database access semaphore
+sem_t request;   // Writer semaphore
 
 unsigned int num_of_readers = 0; // Number of readers reading
 
@@ -47,6 +51,10 @@ void thread_simulation() {
 
 	thread_args reader_args[N_READERS], // arguments of readers
 	            writer_args;            // arguments of writer
+
+	sem_init(&mutex, 0, 1);         // intialize mutex
+	sem_init(&db_access, 0, 1);     // initialize database semaphore
+	sem_init(&request, 0, 1);     //
 	// ------------------------------------------------------------------------
 
 	// Generating seeds -------------------------------------------------------
@@ -93,13 +101,17 @@ int main(int argc, char* argv[]) {
 // ----------------------------------------------------------------------------
 
 void lock_reader(int id) {
+	sem_wait(&mutex);
 	num_of_readers++;
 	message("[READER >>]: " + std::to_string(id) + " locked db (" + std::to_string(num_of_readers) + " reading)");
+	sem_post(&mutex);
 }
 
 void unlock_reader(int id) {
+	sem_wait(&mutex);
 	num_of_readers--;	
 	message("[READER >>]: " + std::to_string(id) + " unlocked db (" + std::to_string(num_of_readers) + " reading)");
+	sem_post(&mutex);
 }
 
 void *reader_func(void *_args) {
@@ -108,7 +120,10 @@ void *reader_func(void *_args) {
 	unsigned int id = args->id,
 	             seed = args->seed;
 
+	sem_wait(&mutex);
 	std::cout << "[READER >>]: " << id << " is ONLINE\n";
+	sem_post(&mutex);
+
 	for(int i = 0; i < READER_STEPS; i++) {
 		int action = (int) (rand_prob(&seed) * READER_ACTIONS),
 		    set_delay = (int) (rand_prob(&seed) * MAX_DELAY);
@@ -140,21 +155,39 @@ void *reader_func(void *_args) {
 			upper_name = aux;
 		}
 
+		sem_wait(&request);
+		sem_post(&request);		    
 		lock_reader(id);
+
 		switch(action) {
 			case ACTION_GET_ID:
+				sem_wait(&mutex);
 				message("[READER >>]: " + std::to_string(id) + " will get element by id");
+				sem_post(&mutex);
+
+				sem_wait(&db_access);
 				db.get_id(lower_id, upper_id, false);
+				sem_post(&db_access);
 				break;
 
 			case ACTION_GET_NAME:
+				sem_wait(&mutex);
 				message("[READER >>]: " + std::to_string(id) + " will get element by name");
+				sem_post(&mutex);
+
+				sem_wait(&db_access);
 				db.get_name(lower_name, upper_name, false);
+				sem_post(&db_access);
 				break;
 
 			case ACTION_GET_VALUE:
+				sem_wait(&mutex);
 				message("[READER >>]: " + std::to_string(id) + " will get element by value");
+				sem_post(&mutex);
+
+				sem_wait(&db_access);
 				db.get_value(lower_val, upper_val, false);
+				sem_post(&db_access);
 				break;
 
 			default:
@@ -165,7 +198,10 @@ void *reader_func(void *_args) {
 		usleep(set_delay);		
 	}
 
+	sem_wait(&mutex);
 	std::cout << "[READER >>]: " << id << " is OFFLINE\n";
+	sem_post(&mutex);
+
 	return NULL;
 }
 
@@ -175,26 +211,45 @@ void *writer_func(void *_args) {
 	unsigned int id = args->id,
 	             seed = args->seed;
 
+	sem_wait(&mutex);
 	std::cout << "[<< WRITER]: " << id << " is ONLINE\n";
+	sem_post(&mutex);
+
 	for(int i = 0; i < WRITER_STEPS; i++) {
 		int set_delay = (int) (rand_prob(&seed) * MAX_DELAY);
 
 		double new_value = rand_value(&seed);
 		word new_word = rand_string(WRITER_STRING_SIZE, &seed);
 		
+		sem_wait(&request);
+
+		sem_wait(&mutex);
 		message("[<< WRITER]: " + std::to_string(id) + " locked db for new readers (" + std::to_string(num_of_readers) + " reading)");
-		
+		sem_post(&mutex);
+
+		sem_wait(&db_access);
 		bool success = db.insert(new_word, new_value);
+		sem_post(&db_access);
+
+		sem_wait(&mutex);
 		if(!success)
 			message("[<< WRITER]: " + std::to_string(id) + " couldn't insert");
 		else
 			message("[<< WRITER]: " + std::to_string(id) + " inserted");
+		sem_post(&mutex);
 
+		sem_wait(&mutex);
 		message("[<< WRITER]: " + std::to_string(id) + " unlocked db");
+		sem_post(&mutex);
+
+		sem_post(&request);
+
 		usleep(set_delay);
 	}
 
+	sem_wait(&mutex);
 	std::cout << "[<< WRITER]: " << id << " is OFFLINE\n";
+	sem_post(&mutex);
 
 	return NULL;
 }
